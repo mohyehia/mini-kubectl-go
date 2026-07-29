@@ -11,19 +11,19 @@ curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:6443/v
 ```json
 {
   "major": "1",
-  "minor": "35",
+  "minor": "34",
   "emulationMajor": "1",
-  "emulationMinor": "35",
+  "emulationMinor": "34",
   "minCompatibilityMajor": "1",
-  "minCompatibilityMinor": "34",
-  "gitVersion": "v1.35.5+k3s1",
-  "gitCommit": "6a4781ad53ee5cad273bedcd9462ae36ac97d798",
+  "minCompatibilityMinor": "33",
+  "gitVersion": "v1.34.8+orb1",
+  "gitCommit": "2ba98e2929fd804b7f8e2fd8e757628e9fa629de",
   "gitTreeState": "clean",
-  "buildDate": "2026-05-20T11:15:10Z",
+  "buildDate": "2026-05-30T05:32:06Z",
   "goVersion": "go1.25.9",
   "compiler": "gc",
-  "platform": "linux/amd64"
-}
+  "platform": "linux/arm64"
+}                                                                                             
 ```
 ---
 ## APIs Command

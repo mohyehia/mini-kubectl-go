@@ -1,5 +1,5 @@
 /*
-Copyright © 2026 mohyehia <mohammedyehia99@gmail.com>
+Package cmd Copyright © 2026 mohyehia <mohammedyehia99@gmail.com>
 */
 package cmd
 
@@ -58,14 +58,13 @@ var namespace string
 var kubeConfigDefaultPath = "~/.kube/config"
 var KubeConfig k8s.KubeConfig
 var currentClusterConnection k8s.CurrentClusterConnection
+var K8sClient *k8s.Client
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", kubeConfigDefaultPath, "config file (default is $HOME/.kube/config)")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "default", "namespace to use")
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("Loading config from: %s\n", configFile)
-		fmt.Printf("Targeting Namespace: %s\n", namespace)
 
 		if strings.Contains(configFile, "~") {
 			homeDir, err := os.UserHomeDir()
@@ -111,13 +110,17 @@ func init() {
 			}
 		}
 
-		fmt.Printf("CurrentClusterName: %s\n", currentClusterConnection.CurrentClusterName)
-		fmt.Printf("CurrentUserName: %s\n", currentClusterConnection.CurrentUserName)
-		fmt.Printf("ServerURL: %s\n", currentClusterConnection.ServerURL)
-		fmt.Printf("CertificateAuthorityData: %s\n", currentClusterConnection.CertificateAuthorityData)
-		fmt.Printf("ClientCertificateData: %s\n", currentClusterConnection.ClientCertificateData)
-		fmt.Printf("ClientKeyData: %s\n", currentClusterConnection.ClientKeyData)
+		//fmt.Printf("CurrentClusterName: %s\n", currentClusterConnection.CurrentClusterName)
+		//fmt.Printf("CurrentUserName: %s\n", currentClusterConnection.CurrentUserName)
+		//fmt.Printf("ServerURL: %s\n", currentClusterConnection.ServerURL)
+		//fmt.Printf("CertificateAuthorityData: %s\n", currentClusterConnection.CertificateAuthorityData)
+		//fmt.Printf("ClientCertificateData: %s\n", currentClusterConnection.ClientCertificateData)
+		//fmt.Printf("ClientKeyData: %s\n", currentClusterConnection.ClientKeyData)
 
+		K8sClient, err = k8s.NewClient(currentClusterConnection)
+		if err != nil {
+			return fmt.Errorf("failed to initialize k8s client: %w", err)
+		}
 		return nil
 	}
 }

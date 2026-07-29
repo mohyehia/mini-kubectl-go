@@ -2,19 +2,30 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
+
+// Version will be set at build time via -ldflags. Defaults to dev if compiled directly.
+var Version = "v0.1.0"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number",
 	Long:  "Print the client and server version information for the current context.",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Client Version: ", "v1.0.0")
-		fmt.Println("Server Version: ", "v1.35.5+k3s1")
-		os.Exit(0)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Client Version: ", Version)
+
+		if K8sClient == nil {
+			return fmt.Errorf("k8s client is not initialized. Please check your kubeconfig and ensure the current context is valid")
+		}
+
+		serverVersion, err := K8sClient.GetServerVersion()
+		if err != nil {
+			return fmt.Errorf("could not get server version: %w", err)
+		}
+		fmt.Printf("Server Version: %s (Platform: %s)\n", serverVersion.GitVersion, serverVersion.Platform)
+		return nil
 	},
 }
 
