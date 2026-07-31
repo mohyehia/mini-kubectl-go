@@ -17,12 +17,14 @@ var versionCmd = &cobra.Command{
 		fmt.Println("Client Version: ", Version)
 
 		if K8sClient == nil {
-			return fmt.Errorf("k8s client is not initialized. Please check your kubeconfig and ensure the current context is valid")
+			fmt.Println("Server info is not available at the moment.")
+			return nil
 		}
 
 		serverVersion, err := K8sClient.GetServerVersion()
 		if err != nil {
-			return fmt.Errorf("could not get server version: %w", err)
+			fmt.Println("Server info is not available at the moment.")
+			return nil
 		}
 		fmt.Printf("Server Version: %s (Platform: %s)\n", serverVersion.GitVersion, serverVersion.Platform)
 		return nil
