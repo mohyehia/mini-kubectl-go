@@ -53,74 +53,87 @@ func Execute() {
 	}
 }
 
-var configFile string
-var namespace string
 var kubeConfigDefaultPath = "~/.kube/config"
-var KubeConfig k8s.KubeConfig
-var currentClusterConnection k8s.CurrentClusterConnection
-var K8sClient *k8s.Client
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", kubeConfigDefaultPath, "config file (default is $HOME/.kube/config)")
-	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "default", "namespace to use")
+	rootCmd.PersistentFlags().StringVarP(&appState.configFile, "config", "c", kubeConfigDefaultPath, "config file (default is $HOME/.kube/config)")
+	rootCmd.PersistentFlags().StringVarP(&appState.namespace, "namespace", "n", "default", "namespace to use")
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 
-		if strings.Contains(configFile, "~") {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				panic(err)
-			}
-			configFile = strings.Replace(configFile, "~", homeDir, 1)
-		}
-
-		bytes, err := os.ReadFile(configFile)
+		configFile, err := resolveConfigPath(appState.configFile)
 		if err != nil {
-			fmt.Printf("Error reading config file: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error resolving config path %q: %w", configFile, err)
 		}
+		appState.configFile = configFile
 
-		err = yaml.Unmarshal(bytes, &KubeConfig)
+		bytes, err := os.ReadFile(appState.configFile)
 		if err != nil {
-			fmt.Printf("Error parsing config file: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error reading config file: %w", err)
 		}
 
-		currentClusterConnection = k8s.CurrentClusterConnection{}
-
-		// Important step: we need to find the current context first inorder for the remaining parts to be correct
-		for i := range KubeConfig.Contexts {
-			if KubeConfig.Contexts[i].Name == KubeConfig.CurrentContext {
-				currentClusterConnection.CurrentClusterName = KubeConfig.Contexts[i].Context.Cluster
-				currentClusterConnection.CurrentUserName = KubeConfig.Contexts[i].Context.User
-			}
+		err = yaml.Unmarshal(bytes, &appState.kubeConfig)
+		if err != nil {
+			return fmt.Errorf("error parsing config file: %w", err)
 		}
 
-		for i := range KubeConfig.Clusters {
-			if KubeConfig.Clusters[i].Name == currentClusterConnection.CurrentClusterName {
-				currentClusterConnection.ServerURL = KubeConfig.Clusters[i].Cluster.Server
-				currentClusterConnection.CertificateAuthorityData = KubeConfig.Clusters[i].Cluster.CertificateAuthorityData
-			}
+		appState.currentClusterConnection, err = currentClusterConnectionFromConfig(appState.kubeConfig)
+
+		if err != nil {
+			return fmt.Errorf("failed to get current cluster connection from config: %w", err)
 		}
 
-		for i := range KubeConfig.Users {
-			if KubeConfig.Users[i].Name == currentClusterConnection.CurrentUserName {
-				currentClusterConnection.ClientCertificateData = KubeConfig.Users[i].User.ClientCertificateData
-				currentClusterConnection.ClientKeyData = KubeConfig.Users[i].User.ClientKeyData
-			}
-		}
-
-		//fmt.Printf("CurrentClusterName: %s\n", currentClusterConnection.CurrentClusterName)
-		//fmt.Printf("CurrentUserName: %s\n", currentClusterConnection.CurrentUserName)
-		//fmt.Printf("ServerURL: %s\n", currentClusterConnection.ServerURL)
-		//fmt.Printf("CertificateAuthorityData: %s\n", currentClusterConnection.CertificateAuthorityData)
-		//fmt.Printf("ClientCertificateData: %s\n", currentClusterConnection.ClientCertificateData)
-		//fmt.Printf("ClientKeyData: %s\n", currentClusterConnection.ClientKeyData)
-
-		K8sClient, err = k8s.NewClient(currentClusterConnection)
+		appState.k8sClient, err = k8s.NewClient(appState.currentClusterConnection)
 		if err != nil {
 			return fmt.Errorf("failed to initialize k8s client: %w", err)
 		}
 		return nil
 	}
+}
+
+func resolveConfigPath(path string) (string, error) {
+	if strings.Contains(path, "~") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return path, err
+		}
+		path = strings.Replace(path, "~", homeDir, 1)
+	}
+	return path, nil
+}
+
+func currentClusterConnectionFromConfig(config k8s.KubeConfig) (k8s.CurrentClusterConnection, error) {
+	currentClusterConnection := k8s.CurrentClusterConnection{}
+	// Resolve the active context before looking up cluster and user details.
+	for i := range config.Contexts {
+		if config.Contexts[i].Name == config.CurrentContext {
+			currentClusterConnection.CurrentClusterName = config.Contexts[i].Context.Cluster
+			currentClusterConnection.CurrentUserName = config.Contexts[i].Context.User
+		}
+	}
+	if strings.TrimSpace(currentClusterConnection.CurrentClusterName) == "" || strings.TrimSpace(currentClusterConnection.CurrentUserName) == "" {
+		return currentClusterConnection, fmt.Errorf("current cluster name or user name not found in kubeconfig")
+	}
+
+	for i := range config.Clusters {
+		if config.Clusters[i].Name == currentClusterConnection.CurrentClusterName {
+			currentClusterConnection.ServerURL = config.Clusters[i].Cluster.Server
+			currentClusterConnection.CertificateAuthorityData = config.Clusters[i].Cluster.CertificateAuthorityData
+		}
+	}
+	if strings.TrimSpace(currentClusterConnection.ServerURL) == "" || strings.TrimSpace(currentClusterConnection.CertificateAuthorityData) == "" {
+		return currentClusterConnection, fmt.Errorf("current cluster server URL or certificate authority data not found in kubeconfig")
+	}
+
+	for i := range config.Users {
+		if config.Users[i].Name == currentClusterConnection.CurrentUserName {
+			currentClusterConnection.ClientCertificateData = config.Users[i].User.ClientCertificateData
+			currentClusterConnection.ClientKeyData = config.Users[i].User.ClientKeyData
+		}
+	}
+	if strings.TrimSpace(currentClusterConnection.ClientCertificateData) == "" || strings.TrimSpace(currentClusterConnection.ClientKeyData) == "" {
+		return currentClusterConnection, fmt.Errorf("current user client certificate data or client key data not found in kubeconfig")
+	}
+
+	return currentClusterConnection, nil
 }

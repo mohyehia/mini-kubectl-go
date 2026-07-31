@@ -14,16 +14,16 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number",
 	Long:  "Print the client and server version information for the current context.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Client Version: ", Version)
+		fmt.Printf("Client Version: %s\n", Version)
 
-		if K8sClient == nil {
+		if appState.k8sClient == nil {
 			fmt.Println("Server info is not available at the moment.")
 			return nil
 		}
 
-		serverVersion, err := K8sClient.GetServerVersion()
+		serverVersion, err := appState.k8sClient.GetServerVersion()
 		if err != nil {
-			fmt.Println("Server info is not available at the moment.")
+			fmt.Printf("Server Version: unavailable (%v)\n", err)
 			return nil
 		}
 		fmt.Printf("Server Version: %s (Platform: %s)\n", serverVersion.GitVersion, serverVersion.Platform)

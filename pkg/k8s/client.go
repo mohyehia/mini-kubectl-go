@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 )
@@ -20,6 +19,7 @@ type Client struct {
 	ServerURL  string
 }
 
+// NewClient This implementation currently supports mTLS kubeconfigs only.
 func NewClient(connection CurrentClusterConnection) (*Client, error) {
 	// 1. Decode Base64 Certificate Authority (CA)
 	caBytes, err := base64.StdEncoding.DecodeString(connection.CertificateAuthorityData)
@@ -87,13 +87,8 @@ func (c *Client) GetServerVersion() (*ServerVersion, error) {
 		return nil, fmt.Errorf("server returned unexpected status code: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	var serverVersion ServerVersion
-	if err := json.Unmarshal(body, &serverVersion); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&serverVersion); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal server version: %w", err)
 	}
 	return &serverVersion, nil
