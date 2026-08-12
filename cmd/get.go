@@ -54,9 +54,25 @@ var getCommand = &cobra.Command{
 			}
 			return printer.PrintNamespaces(os.Stdout, &resourceList)
 		case k8s.POD:
-			fmt.Printf("Pod list: %+v\n", string(responseBody))
+			var resourceList resources.ResourceList[resources.Pod]
+			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
+				return fmt.Errorf("failed to unmarshal resource list: %w", err)
+			}
+			if len(resourceList.Items) == 0 {
+				fmt.Printf("No resources found in %s namespace.\n", appState.namespace)
+			} else {
+				return printer.PrintPods(os.Stdout, &resourceList)
+			}
 		case k8s.SERVICE:
-			fmt.Printf("Service list: %+v\n", string(responseBody))
+			var resourceList resources.ResourceList[resources.Service]
+			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
+				return fmt.Errorf("failed to unmarshal resource list: %w", err)
+			}
+			if len(resourceList.Items) == 0 {
+				fmt.Printf("No resources found in %s namespace.\n", appState.namespace)
+			} else {
+				return printer.PrintServices(os.Stdout, &resourceList)
+			}
 		case k8s.DEPLOYMENT:
 			fmt.Printf("Deployment list: %+v\n", string(responseBody))
 		default:
