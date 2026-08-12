@@ -6,12 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
 
 type ClusterOperations interface {
 	GetServerVersion() (*ServerVersion, error)
+
+	GetResourceList(kind ResourceKind, namespace string) ([]byte, error)
 }
 
 type Client struct {
@@ -92,4 +95,27 @@ func (c *Client) GetServerVersion() (*ServerVersion, error) {
 		return nil, fmt.Errorf("failed to unmarshal server version: %w", err)
 	}
 	return &serverVersion, nil
+}
+
+func (c *Client) GetResourceList(kind ResourceKind, namespace string) ([]byte, error) {
+	url := getURL(c.ServerURL, kind, namespace)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to the server: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned unexpected status code: %d", resp.StatusCode)
+	}
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+	return bytes, nil
 }

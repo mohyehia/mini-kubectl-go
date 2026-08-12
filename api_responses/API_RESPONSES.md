@@ -4,7 +4,7 @@
 
 ### Request
 ```shell
-curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:6443/version
+curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:26443/version
 ```
 
 ### Response
@@ -29,7 +29,7 @@ curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:6443/v
 ## APIs Command
 ### Request
 ```shell
-curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:6443/api
+curl --cacert ca.crt --cert client.crt --key client.key https://127.0.0.1:26443/api
 ```
 
 ### Response
