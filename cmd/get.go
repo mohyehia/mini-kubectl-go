@@ -58,28 +58,31 @@ var getCommand = &cobra.Command{
 			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
 				return fmt.Errorf("failed to unmarshal resource list: %w", err)
 			}
-			if len(resourceList.Items) == 0 {
-				fmt.Printf("No resources found in %s namespace.\n", appState.namespace)
-			} else {
-				return printer.PrintPods(os.Stdout, &resourceList)
+			if hasNoResources(appState.namespace, len(resourceList.Items)) {
+				return nil
 			}
+			return printer.PrintPods(os.Stdout, &resourceList)
 		case k8s.SERVICE:
 			var resourceList resources.ResourceList[resources.Service]
 			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
 				return fmt.Errorf("failed to unmarshal resource list: %w", err)
 			}
-			if len(resourceList.Items) == 0 {
-				fmt.Printf("No resources found in %s namespace.\n", appState.namespace)
-			} else {
-				return printer.PrintServices(os.Stdout, &resourceList)
+			if hasNoResources(appState.namespace, len(resourceList.Items)) {
+				return nil
 			}
+			return printer.PrintServices(os.Stdout, &resourceList)
 		case k8s.DEPLOYMENT:
-			fmt.Printf("Deployment list: %+v\n", string(responseBody))
+			var resourceList resources.ResourceList[resources.Deployment]
+			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
+				return fmt.Errorf("failed to unmarshal resource list: %w", err)
+			}
+			if hasNoResources(appState.namespace, len(resourceList.Items)) {
+				return nil
+			}
+			return printer.PrintDeployments(os.Stdout, &resourceList)
 		default:
 			return fmt.Errorf("unsupported resource type: %s", resourceType)
 		}
-
-		return nil
 	},
 }
 
@@ -103,4 +106,12 @@ func validateResourceType(resourceType string) (*k8s.ResourceInfo, error) {
 		return nil, fmt.Errorf("invalid resource type: %s", resourceType)
 	}
 	return &info, nil
+}
+
+func hasNoResources(namespace string, length int) bool {
+	if length == 0 {
+		fmt.Printf("No resources found in %s namespace.\n", namespace)
+		return true
+	}
+	return false
 }
