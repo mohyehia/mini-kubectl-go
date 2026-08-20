@@ -42,17 +42,9 @@ var getCommand = &cobra.Command{
 
 		switch info.Kind {
 		case k8s.NODE:
-			var resourceList resources.ResourceList[resources.Node]
-			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
-				return fmt.Errorf("failed to unmarshal resource list: %w", err)
-			}
-			return printer.PrintNodes(os.Stdout, &resourceList)
+			return printer.PrintNodes(os.Stdout, responseBody, outputFormat)
 		case k8s.NAMESPACE:
-			var resourceList resources.ResourceList[resources.Namespace]
-			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
-				return fmt.Errorf("failed to unmarshal resource list: %w", err)
-			}
-			return printer.PrintNamespaces(os.Stdout, &resourceList)
+			return printer.PrintNamespaces(os.Stdout, responseBody, outputFormat)
 		case k8s.POD:
 			var resourceList resources.ResourceList[resources.Pod]
 			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
