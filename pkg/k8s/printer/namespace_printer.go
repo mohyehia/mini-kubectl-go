@@ -1,14 +1,12 @@
 package printer
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"text/tabwriter"
 
 	"github.com/mohyehia/mini-kubectl/pkg/k8s/resources"
-	"gopkg.in/yaml.v3"
 )
 
 func PrintNamespaces(out io.Writer, responseBody []byte, outputFormat string) error {
@@ -20,9 +18,9 @@ func PrintNamespaces(out io.Writer, responseBody []byte, outputFormat string) er
 	case "default", "table":
 		return printNamespacesDefaultFormat(out, &namespaces)
 	case "json":
-		return printNamespacesJsonFormat(out, responseBody)
+		return printJsonFormat(out, responseBody)
 	case "yaml", "yml":
-		return printNamespacesYamlFormat(out, responseBody)
+		return printYamlFormat(out, responseBody)
 	default:
 		return fmt.Errorf("unsupported output format: %s", outputFormat)
 	}
@@ -53,26 +51,4 @@ func printNamespacesDefaultFormat(out io.Writer, namespaces *resources.ResourceL
 		}
 	}
 	return tabWriter.Flush()
-}
-
-func printNamespacesJsonFormat(out io.Writer, responseBody []byte) error {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, responseBody, "", "  "); err != nil {
-		return fmt.Errorf("failed to format JSON: %w", err)
-	}
-	_, err := out.Write(prettyJSON.Bytes())
-	return err
-}
-
-func printNamespacesYamlFormat(out io.Writer, responseBody []byte) error {
-	var yamlData any
-	if err := json.Unmarshal(responseBody, &yamlData); err != nil {
-		return fmt.Errorf("failed to parse JSON for YAML conversion: %w", err)
-	}
-	yamlBytes, err := yaml.Marshal(yamlData)
-	if err != nil {
-		return fmt.Errorf("failed to convert JSON to YAML: %w", err)
-	}
-	_, err = out.Write(yamlBytes)
-	return err
 }

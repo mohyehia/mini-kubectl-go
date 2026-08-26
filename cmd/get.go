@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/mohyehia/mini-kubectl/pkg/k8s"
 	"github.com/mohyehia/mini-kubectl/pkg/k8s/printer"
-	"github.com/mohyehia/mini-kubectl/pkg/k8s/resources"
 	"github.com/spf13/cobra"
 )
 
@@ -46,32 +44,11 @@ var getCommand = &cobra.Command{
 		case k8s.NAMESPACE:
 			return printer.PrintNamespaces(os.Stdout, responseBody, outputFormat)
 		case k8s.POD:
-			var resourceList resources.ResourceList[resources.Pod]
-			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
-				return fmt.Errorf("failed to unmarshal resource list: %w", err)
-			}
-			if hasNoResources(appState.namespace, len(resourceList.Items)) {
-				return nil
-			}
-			return printer.PrintPods(os.Stdout, &resourceList)
+			return printer.PrintPods(os.Stdout, responseBody, appState.namespace, outputFormat)
 		case k8s.SERVICE:
-			var resourceList resources.ResourceList[resources.Service]
-			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
-				return fmt.Errorf("failed to unmarshal resource list: %w", err)
-			}
-			if hasNoResources(appState.namespace, len(resourceList.Items)) {
-				return nil
-			}
-			return printer.PrintServices(os.Stdout, &resourceList)
+			return printer.PrintServices(os.Stdout, responseBody, appState.namespace, outputFormat)
 		case k8s.DEPLOYMENT:
-			var resourceList resources.ResourceList[resources.Deployment]
-			if err := json.Unmarshal(responseBody, &resourceList); err != nil {
-				return fmt.Errorf("failed to unmarshal resource list: %w", err)
-			}
-			if hasNoResources(appState.namespace, len(resourceList.Items)) {
-				return nil
-			}
-			return printer.PrintDeployments(os.Stdout, &resourceList)
+			return printer.PrintDeployments(os.Stdout, responseBody, appState.namespace, outputFormat)
 		default:
 			return fmt.Errorf("unsupported resource type: %s", resourceType)
 		}
@@ -98,12 +75,4 @@ func validateResourceType(resourceType string) (*k8s.ResourceInfo, error) {
 		return nil, fmt.Errorf("invalid resource type: %s", resourceType)
 	}
 	return &info, nil
-}
-
-func hasNoResources(namespace string, length int) bool {
-	if length == 0 {
-		fmt.Printf("No resources found in %s namespace.\n", namespace)
-		return true
-	}
-	return false
 }

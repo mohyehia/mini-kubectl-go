@@ -1,6 +1,7 @@
 package printer
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -9,7 +10,28 @@ import (
 	"github.com/mohyehia/mini-kubectl/pkg/k8s/resources"
 )
 
-func PrintServices(out io.Writer, services *resources.ResourceList[resources.Service]) error {
+func PrintServices(out io.Writer, responseBody []byte, namespace, outputFormat string) error {
+	var resourceList resources.ResourceList[resources.Service]
+	if err := json.Unmarshal(responseBody, &resourceList); err != nil {
+		return fmt.Errorf("failed to unmarshal resource list: %w", err)
+	}
+	if hasNoResources(namespace, len(resourceList.Items)) {
+		return nil
+	}
+
+	switch outputFormat {
+	case "default", "table":
+		return printServicesDefaultFormat(out, &resourceList)
+	case "json":
+		return printJsonFormat(out, responseBody)
+	case "yaml", "yml":
+		return printYamlFormat(out, responseBody)
+	default:
+		return fmt.Errorf("unsupported output format: %s", outputFormat)
+	}
+}
+
+func printServicesDefaultFormat(out io.Writer, resourceList *resources.ResourceList[resources.Service]) error {
 	// minWidth: 0, tabWidth: 8, padding: 2 (spaces between columns), padChar: ' ', flags: 0
 	writer := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
 	// 1. Print Column Headers (separated by tabs)
@@ -19,7 +41,7 @@ func PrintServices(out io.Writer, services *resources.ResourceList[resources.Ser
 	}
 
 	// 2. Print Each Service Row
-	for _, svc := range services.Items {
+	for _, svc := range resourceList.Items {
 		externalIP := getExternalIP(svc)
 
 		portStrings := make([]string, 0, len(svc.Spec.Ports))
