@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -15,6 +16,10 @@ type ClusterOperations interface {
 	GetServerVersion() (*ServerVersion, error)
 
 	GetResourceList(kind ResourceKind, namespace string) ([]byte, error)
+
+	DeleteResource(ctx context.Context, kind ResourceKind, namespace, resourceName string) ([]byte, error)
+
+	Exists(ctx context.Context, kind ResourceKind, namespace, resourceName string) (bool, error)
 }
 
 type Client struct {
@@ -118,4 +123,53 @@ func (c *Client) GetResourceList(kind ResourceKind, namespace string) ([]byte, e
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	return bytes, nil
+}
+
+func (c *Client) DeleteResource(ctx context.Context, kind ResourceKind, namespace, resourceName string) ([]byte, error) {
+	url := getURL(c.ServerURL, kind, namespace) + "/" + resourceName
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Delete request: %w", err)
+	}
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("delete request failed: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("resource not found: %s", resourceName)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return nil, fmt.Errorf("DELETE returned unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+	return body, nil
+}
+
+func (c *Client) Exists(ctx context.Context, kind ResourceKind, namespace, resourceName string) (bool, error) {
+	url := getURL(c.ServerURL, kind, namespace) + "/" + resourceName
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create GET request: %w", err)
+	}
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("get request failed: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if resp.StatusCode == http.StatusOK {
+		return true, nil
+	}
+	return false, fmt.Errorf("unexpected status check code: %d", resp.StatusCode)
 }
