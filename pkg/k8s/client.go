@@ -182,7 +182,10 @@ func (c *Client) StreamLogs(ctx context.Context, out io.Writer, namespace, podNa
 	if err != nil {
 		return fmt.Errorf("failed to create log streaming request: %w", err)
 	}
-	resp, err := c.HttpClient.Do(req)
+	// Create dedicated HTTP client for streaming to avoid timeout issues
+	streamingClient := *c.HttpClient
+	streamingClient.Timeout = 0 // Disable timeout for streaming
+	resp, err := streamingClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("log streaming request failed: %w", err)
 	}
@@ -196,8 +199,12 @@ func (c *Client) StreamLogs(ctx context.Context, out io.Writer, namespace, podNa
 	}
 
 	_, err = io.Copy(out, resp.Body)
-	if err != nil && ctx.Err() != nil {
-		return fmt.Errorf("log streaming interrupted by user: %w", ctx.Err())
+	if err != nil {
+		if ctx.Err() != nil {
+			fmt.Printf("\nlog streaming interrupted by user for pod %s\n", podName)
+			return nil
+		}
+		return fmt.Errorf("log streaming interrupted: %w", err)
 	}
 	return nil
 }

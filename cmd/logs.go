@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -21,14 +22,17 @@ var logsCommand = &cobra.Command{
 		if strings.TrimSpace(podName) == "" {
 			return fmt.Errorf("pod name cannot be empty")
 		}
-		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 
 		err := appState.k8sClient.StreamLogs(ctx, os.Stdout, appState.namespace, podName, followFlag)
 
-		if err != nil && ctx.Err() != nil {
-			fmt.Printf("log streaming interrupted by user for pod %s", podName)
-			return nil
+		if err != nil {
+			if ctx.Err() != nil {
+				fmt.Printf("\nlog streaming interrupted by user for pod %s\n", podName)
+				return nil
+			}
+			return err
 		}
 		return nil
 	},

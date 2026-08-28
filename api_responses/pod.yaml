@@ -15,5 +15,5 @@ spec:
           while true; do
             echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"INFO\",\"iteration\":$counter,\"message\":\"Simulating high-throughput log streaming chunk test for stridectl\"}"
             counter=$((counter+1))
-            usleep 100000 # 10 logs per second
+            sleep 1
           done
