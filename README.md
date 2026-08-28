@@ -8,6 +8,7 @@ A small Go CLI that mimics a subset of `kubectl` by calling the Kubernetes API d
 - `get` — lists resources in `default`, `table`, `json`, or `yaml` output
 - `delete` — deletes a resource by type and name, with wait and timeout support
 - `describe` — currently a work in progress
+- `logs` — streams logs from a pod container with signal handling and context cancellation
 
 ## Supported resources
 
@@ -38,6 +39,7 @@ go run . get pods
 go run . get deployments -n kube-system -o yaml
 go run . get svc -o json
 go run . delete pod nginx --wait --timeout 30s
+go run . logs nginx --follow
 ```
 
 ## Install / Build

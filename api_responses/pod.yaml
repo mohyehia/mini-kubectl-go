@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fast-log-generator
+  namespace: default
+spec:
+  restartPolicy: Never
+  containers:
+    - name: logger
+      image: busybox:1.36
+      command: ["sh", "-c"]
+      args:
+        - |
+          counter=1
+          while true; do
+            echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"INFO\",\"iteration\":$counter,\"message\":\"Simulating high-throughput log streaming chunk test for stridectl\"}"
+            counter=$((counter+1))
+            usleep 100000 # 10 logs per second
+          done

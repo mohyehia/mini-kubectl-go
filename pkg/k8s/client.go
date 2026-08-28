@@ -20,6 +20,8 @@ type ClusterOperations interface {
 	DeleteResource(ctx context.Context, kind ResourceKind, namespace, resourceName string) ([]byte, error)
 
 	Exists(ctx context.Context, kind ResourceKind, namespace, resourceName string) (bool, error)
+
+	StreamLogs(ctx context.Context, out io.Writer, namespace, podName string, follow bool) error
 }
 
 type Client struct {
@@ -172,4 +174,30 @@ func (c *Client) Exists(ctx context.Context, kind ResourceKind, namespace, resou
 		return true, nil
 	}
 	return false, fmt.Errorf("unexpected status check code: %d", resp.StatusCode)
+}
+
+func (c *Client) StreamLogs(ctx context.Context, out io.Writer, namespace, podName string, follow bool) error {
+	url := getURL(c.ServerURL, POD, namespace) + "/" + podName + "/log?follow=" + fmt.Sprintf("%t", follow)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create log streaming request: %w", err)
+	}
+	resp, err := c.HttpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("log streaming request failed: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("log streaming returned unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil && ctx.Err() != nil {
+		return fmt.Errorf("log streaming interrupted by user: %w", ctx.Err())
+	}
+	return nil
 }
