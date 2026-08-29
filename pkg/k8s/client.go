@@ -201,8 +201,7 @@ func (c *Client) StreamLogs(ctx context.Context, out io.Writer, namespace, podNa
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		if ctx.Err() != nil {
-			fmt.Printf("\nlog streaming interrupted by user for pod %s\n", podName)
-			return nil
+			return ctx.Err()
 		}
 		return fmt.Errorf("log streaming interrupted: %w", err)
 	}
